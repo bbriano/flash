@@ -1,0 +1,37 @@
+Flash is a flashcards program.
+
+Flash picks a random card out of the deck.
+Displays a random side of the card.
+You write down your answer somewhere.
+Press Enter to see other sides of the deck.
+Repeat.
+
+EXAMPLE
+	$ flash chinese.deck
+	水 *Enter*
+	shuǐ
+	water
+
+	zero *Enter*
+	零
+	líng
+
+	...
+
+INSTALL
+	go install
+
+ABOUT
+	A deck is a set of cards.
+	Each line in a deck file represents a card.
+	A card is a set of sides.
+	Each field in a line represents a side.**
+	A side is just some text.
+
+	See the example chinese.deck file
+
+	**A field is some text in a line flanked by one of the following:
+	start of line, end of line, or at least one tab character.
+
+TODOS
+	* look into spaced repetition algorithms
