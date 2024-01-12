@@ -1,42 +1,39 @@
 package main
 
 import (
-	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
-	"strings"
+	"os/exec"
+	"regexp"
 	"time"
 )
 
 type Deck []Card
-type Card []Side
-type Side string
+
+type Card struct {
+	Hanzi      string
+	Pinyin     string
+	Definition string
+}
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: flash deckfile\n")
-		os.Exit(1)
-	}
-	d, err := LoadDeck(os.Args[1])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading deck: %v\n", err)
-		os.Exit(1)
-	}
 	rand.Seed(time.Now().UnixNano())
-	for {
-		c := d[rand.Int()%len(d)]
-		ifront := rand.Int() % len(c)
-		fmt.Print(c[ifront])
-		fmt.Scanln() // wait for user to input newline
-		for i, s := range c {
-			if i == ifront {
-				continue
-			}
-			fmt.Println(s)
-		}
-		fmt.Println()
+
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "Usage: flash deckfile")
+		os.Exit(1)
 	}
+
+	deck, err := LoadDeck(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error loading deck:", err)
+		os.Exit(1)
+	}
+
+	deck.Review()
 }
 
 func LoadDeck(deckfile string) (Deck, error) {
@@ -44,23 +41,51 @@ func LoadDeck(deckfile string) (Deck, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
+	buf, err := io.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
 	var deck Deck
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		var line []rune
-		var prevc rune
-		for _, c := range s.Text() {
-			if c == '\t' && prevc == '\t' {
-				continue
-			}
-			line = append(line, c)
-			prevc = c
+	re := regexp.MustCompile("([^\t\n]+)\t+([^\t\n]+)\t+([^\t\n]+)")
+	for _, match := range re.FindAllStringSubmatch(string(buf), -1) {
+		if len(match) != 4 {
+			return nil, errors.New("bad row")
 		}
-		var card Card
-		for _, text := range strings.Split(string(line), "\t") {
-			card = append(card, Side(text))
+		card := Card{
+			Hanzi:      match[1],
+			Pinyin:     match[2],
+			Definition: match[3],
 		}
 		deck = append(deck, card)
 	}
 	return deck, nil
+}
+
+func (deck Deck) Review() {
+	for {
+		card := deck[rand.Int()%len(deck)]
+		if rand.Int()%2 == 0 {
+			// Show Hanzi first.
+			fmt.Print(card.Hanzi)
+			fmt.Scanln() // wait for user to input newline
+			fmt.Println(card.Pinyin)
+			fmt.Println(card.Definition)
+		} else {
+			// Show Definition first.
+			fmt.Print(card.Definition)
+			fmt.Scanln() // wait for user to input newline
+			fmt.Println(card.Hanzi)
+			fmt.Println(card.Pinyin)
+		}
+		go say(card.Hanzi)
+		fmt.Println()
+	}
+}
+
+func say(sentence string) {
+	cmd := exec.Command("say")
+	cmd.Args = []string{"say", sentence}
+	cmd.Run()
 }
